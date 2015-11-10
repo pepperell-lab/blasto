@@ -21,7 +21,8 @@ sameC <- subset(hist2, Ref != 'C' & G1 == 'C' & G2 == 'C' & G3 == 'C' & G4 == 'C
 sameT <- subset(hist2, Ref != 'T' & G1 == 'T' & G2 == 'T' & G3 == 'T' & G4 == 'T' & G5 == 'T' & G6 == 'T' & G7 == 'T' & G8 == 'T' & G9 == 'T' & G10 == 'T')
 sameG <- subset(hist2, Ref != 'G' & G1 == 'G' & G2 == 'G' & G3 == 'G' & G4 == 'G' & G5 == 'G' & G6 == 'G' & G7 == 'G' & G8 == 'G' & G9 == 'G' & G10 == 'G')
 same <- rbind(sameA, sameC, sameT, sameG)
-same_nodups <- same[!duplicated(same[,'Pos']),]
+same_nodups <- same[!duplicated(same[,'Pos']),] ###PROBLEM - this removes snps with the same 
+####pos on different chromosomes!!!! not good!!!!!
 
 levels(same$G1)
 same_novel <- subset(same, isKnownVariant == "FALSE")
