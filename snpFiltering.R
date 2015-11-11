@@ -11,6 +11,64 @@ sub_dat <- dat[,c(1:5, 10, 79, 81:90, 96, 115:120, 125)] #get rid of unnecessary
 sub_dat$Genotypes <- as.character(sub_dat$Genotypes) #convert genotypes to characters
 sub_dat$snpID <- paste(sub_dat$Chrom, sub_dat$Pos, sep="_")
 
+###Alternative method that will include hets
+sameGeno <- subset(sub_dat, 
+                   (substr(Genotypes, 1, 2) == substr(Genotypes, 3,4) & 
+                    substr(Genotypes, 1, 2) == substr(Genotypes, 5,6) &
+                    substr(Genotypes, 1, 2) == substr(Genotypes, 7,8) &
+                    substr(Genotypes, 1, 2) == substr(Genotypes, 9,10)
+                   ))
+              
+
+sameGeno2 <- subset(sub_dat, 
+                     ((substr(Genotypes, 1, 2) == substr(Genotypes, 3,4) | substr(Genotypes, 1, 2) == substr(Genotypes, 4,3)) & 
+                      (substr(Genotypes, 1, 2) == substr(Genotypes, 5,6) | substr(Genotypes, 1, 2) == substr(Genotypes, 6,5)) &
+                      (substr(Genotypes, 1, 2) == substr(Genotypes, 7,8) | substr(Genotypes, 1, 2) == substr(Genotypes, 8,7)) &
+                      (substr(Genotypes, 1, 2) == substr(Genotypes, 9,10) | substr(Genotypes, 1, 2) == substr(Genotypes, 10,9))
+                   ))
+                   
+
+###Allow for one missing genotype
+sameAm <- subset(sub_dat, (
+    substr(Genotypes, 1, 10) == "AAAAAAAAAA" |
+    substr(Genotypes, 1, 10) == "00AAAAAAAA" |
+    substr(Genotypes, 1, 10) == "AA00AAAAAA" |
+    substr(Genotypes, 1, 10) == "AAAA00AAAA" |
+    substr(Genotypes, 1, 10) == "AAAAAA00AA" |
+    substr(Genotypes, 1, 10) == "AAAAAAAA00"
+  ))
+  
+sameTm <- subset(sub_dat, (
+  substr(Genotypes, 1, 10) == "TTTTTTTTTT" |
+    substr(Genotypes, 1, 10) == "00TTTTTTTT" |
+    substr(Genotypes, 1, 10) == "TT00TTTTTT" |
+    substr(Genotypes, 1, 10) == "TTTT00TTTT" |
+    substr(Genotypes, 1, 10) == "TTTTTT00TT" |
+    substr(Genotypes, 1, 10) == "TTTTTTTT00"
+))
+
+sameCm <- subset(sub_dat, (
+  substr(Genotypes, 1, 10) == "CCCCCCCCCC" |
+    substr(Genotypes, 1, 10) == "00CCCCCCCC" |
+    substr(Genotypes, 1, 10) == "CC00CCCCCC" |
+    substr(Genotypes, 1, 10) == "CCCC00CCCC" |
+    substr(Genotypes, 1, 10) == "CCCCCC00CC" |
+    substr(Genotypes, 1, 10) == "CCCCCCCC00"
+))
+
+sameGm <- subset(sub_dat, (
+  substr(Genotypes, 1, 10) == "GGGGGGGGGG" |
+    substr(Genotypes, 1, 10) == "00GGGGGGGG" |
+    substr(Genotypes, 1, 10) == "GG00GGGGGG" |
+    substr(Genotypes, 1, 10) == "GGGG00GGGG" |
+    substr(Genotypes, 1, 10) == "GGGGGG00GG" |
+    substr(Genotypes, 1, 10) == "GGGGGGGG00"
+))
+
+sameM <- rbind(sameAm, sameCm, sameTm, sameGm)
+
+
+#####
 sameA <- subset(sub_dat, substr(Genotypes, 1, 10) == "AAAAAAAAAA")
 sameT <- subset(sub_dat, substr(Genotypes, 1, 10) == "TTTTTTTTTT")
 sameC <- subset(sub_dat, substr(Genotypes, 1, 10) == "CCCCCCCCCC")
@@ -21,13 +79,15 @@ same_nodups <- same[!duplicated(same[,'snpID']),] #changed from Pos to snpID so 
 
 #to see what is removed 
 require(sqldf)
-diff <- sqldf('SELECT * FROM blood_rare EXCEPT SELECT * FROM blood_rare_CG')
+diff <- sqldf('SELECT * FROM sameGeno2 EXCEPT SELECT * FROM same')
 subset(same, Pos == 109144544)
 subset(same_nodups, Pos ==109144544)
 #identified bug and fixed - was removing 'duplicated' snps that weren't truly duplicates
 
-rare <- same[is.na(same$TG_EUR) | same$TG_EUR <0.2,]
-rare_reg <- subset(rare, AnnoType == 'RegulatoryFeature')
+
+same_rare <- same[(is.na(same$TG_EUR) & same$Alt == substr(same$Genotypes, 1, 1)) | (same$TG_EUR <=0.1 & same$Alt == substr(same$Genotypes, 1, 1)) | (same$TG_EUR >= 0.9 & same$Ref == substr(same$Genotypes, 1, 1)), ]
+same_rare_reg <- subset(same_rare, AnnoType == 'RegulatoryFeature')
+
 
 eQTL <- same[!is.na(same$eQTLs),]
 lung <- eQTL[grep("lung", eQTL$eQTLs), ]
@@ -44,4 +104,15 @@ blood_rare <- blood[(is.na(blood$TG_EUR) & blood$Alt == substr(blood$Genotypes, 
 blood_rare_CG <- blood_rare[!is.na(blood_rare$candReg) | !is.na(blood_rare$candGene), ]
 
 
+------
+  
+#Barreiro eQTLs & reQTLs
+
+barreiro <- read.table("C://Users/Mary/PepLab/data/blasto/BarreiroSig_rs.txt", header=F)  
+barreiro2 <- as.character(barreiro$V1)
+
+same_barreiro <- subset(same, rs %in% barreiro2)
+same_barreiro_rare <- subset(same_rare, rs %in% barreiro2)
+
+same_barreiro2 <- subset(sameM, rs %in% barreiro2)
 
