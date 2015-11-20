@@ -1,9 +1,18 @@
 #Explore the newly added eQTL annotations to SNPs found in ROH during the pilot study
 
+setwd("C:/Users/Mary/PepLab/data/blasto")
 filename = "151110_ROHsnps_CADD_GTEx.txt"
 dat <- read.table(filename, header=T, sep='\t', na.strings="NA")
-#rownames(dat) <- paste(dat$Chrom, dat$Pos, sep="_") #cannot do because it is not unique, i.e. 
+rownames(dat) <- paste(dat$Chrom, dat$Pos, sep="_") #cannot do because it is not unique, i.e. 
 #multiple rows per SNP
+#non-unique values when setting 'row.names': ‘1_195783178’, ‘1_33175285’, ‘1_62982891’, ‘1_73453918’, ‘11_54706240’, ‘14_59835972’, ‘17_16240639’, ‘19_29867469’, ‘2_150422200’, ‘3_25926142’, ‘6_123442126’, ‘6_123824253’, ‘6_124515590’, ‘6_127868211’, ‘6_131826865’, ‘6_166372059’, ‘6_79094468’, ‘7_133500313’, ‘8_27777387’, ‘9_131386135’
+#20 snps are causing the problem
+
+rownames(dat) <- paste(dat$Chrom, dat$Pos, dat$isKnownVariant, sep="_") #try adding a third identifier
+#non-unique values when setting 'row.names': ‘1_33175285_FALSE’, ‘1_33175285_TRUE’, ‘1_73453918_FALSE’, ‘1_73453918_TRUE’, ‘11_54706240_FALSE’, ‘6_166372059_FALSE’
+
+subset(dat, Chrom == 1 & Pos == 33175285)
+
 
 which(colnames(dat)=="GeneName") #Way to find the column that corresponds
 
