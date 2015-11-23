@@ -11,7 +11,7 @@ rownames(dat) <- paste(dat$Chrom, dat$Pos, sep="_") #cannot do because it is not
 rownames(dat) <- paste(dat$Chrom, dat$Pos, dat$isKnownVariant, sep="_") #try adding a third identifier
 #non-unique values when setting 'row.names': ‘1_33175285_FALSE’, ‘1_33175285_TRUE’, ‘1_73453918_FALSE’, ‘1_73453918_TRUE’, ‘11_54706240_FALSE’, ‘6_166372059_FALSE’
 
-subset(dat, Chrom == 1 & Pos == 33175285)
+subset(sub_dat, Chrom == 1 & Pos == 33175285)
 
 
 which(colnames(dat)=="GeneName") #Way to find the column that corresponds
@@ -125,3 +125,14 @@ same_barreiro_rare <- subset(same_rare, rs %in% barreiro2)
 
 same_barreiro2 <- subset(sameM, rs %in% barreiro2)
 
+
+
+------
+#Novel  
+  
+same_novel <- subset(same, isKnownVariant == "FALSE")
+#same_novel_nodups <- same_novel[!duplicated(same_novel[,'Pos']),]
+#same_novel_sub <- same_novel[,c(1:6,10,11,57,61,65,68,69,71,89,90,92,93,98:109)]
+same_novel_CG <- subset(same_novel, candGene != "." | candReg != ".")
+
+  
