@@ -1,0 +1,139 @@
+---
+title: "Chr12"
+author: "Mary O'Neill"
+date: "February 29, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+suppressMessages(library(dplyr))
+```
+
+## Load the file
+
+Working from the files of SNPs found in consensus ROH during the pilot, I have extracted SNPs on Chr 12 and had them re-annotated with CADD under the logic that it will be easier to work with a small dataset in trying to trouble shoot what is going on. Working directly with the outout from CADD, the file structure is like this:
+
+```{r data}
+# Specify path to file
+filename <- "C://Users/Mary/PepLab/data/blasto/CADD/output/160226_CADD_Chr12.tsv"
+
+# load the data into a data frame
+dat <- read.table(filename, header=T, sep='\t', stringsAsFactors = TRUE, na.strings = "NA")
+
+# convert to local data frame for nice viewing features with the dplyr package
+ldf <- tbl_df(dat)
+
+# Make a subset of the data and have a look at its structure wth dply 'glimpse' (similar to 'str')
+ldf.s <- select(ldf, Chrom, Pos, Ref, Anc, Alt, Type, isDerived, AnnoType, Consequence, TFBS, TFBSPeaks, TFBSPeaksMax, isKnownVariant, ESP_AF, ESP_AFR, ESP_EUR, TG_AF, TG_ASN, TG_AMR, TG_AFR, TG_EUR, GeneID, GeneName)
+glimpse(ldf.s)
+
+
+# Load the dataset cross-ref with 1K genomes data
+
+file2 <- "C://Users/Mary/PepLab/data/blasto/1K_genomes/SNPs_chr12.crossRef"
+
+TG <- read.table(file2, header = F, sep = '\t', stringsAsFactors = TRUE, na.strings = "NA")
+names(TG) <- c("Chrom", "Pos", "rs", "Ref", "Alt", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13", "V14", "V15", "Genotypes", "Info", "TG_rs")
+
+TG.l <- tbl_df(TG)
+TG.s <- select(TG.l, Chrom, Pos, rs, Ref, Alt, Genotypes, Info, TG_rs)
+TG.s$Info <- as.character(TG.s$Info)
+glimpse(TG.s)
+
+```
+
+Note that "dbl" is the dplyr equivalent to "num".
+
+
+## Summarize AF
+
+```{r summary}
+summary(ldf.s$TG_AF)
+summary(ldf.s$TG_ASN)
+summary(ldf.s$TG_AMR)
+summary(ldf.s$TG_AFR)
+summary(ldf.s$TG_EUR)
+```
+
+## CLEC6A
+
+```{r CLEC6A}
+
+clec6a <- filter(ldf.s, Pos >= 8608591 & Pos <= 8630926)
+data.frame(select(clec6a, Chrom, Pos, Ref, Alt, isKnownVariant, ESP_AF, ESP_AFR, ESP_EUR,TG_AF, TG_ASN, TG_AMR, TG_AFR, TG_EUR))[33:45,]
+
+
+cl <- data.frame(filter(TG.s, Pos >= 8613204 & Pos <= 8616392))
+
+si <- data.frame(filter(TG.s, Pos == 8614986))
+
+```
+
+I am going to try splitting the Info column on the ';' and see if they are always in conserved order.
+```{r split_string}
+
+
+
+
+strsplit(si$Info, ";", fixed=TRUE)
+
+# Returns the index of the bit I want
+grep("AMR_AF", (strsplit(si$Info, ";", fixed=TRUE))[[1]])
+grep("AMR_AF", unlist((strsplit(si$Info, ";", fixed=TRUE))))
+
+
+grep("AMR_AF", (str_split(si$Info, ";"))[[1]])
+library("stringr")
+
+
+# One step at a time
+info <- unlist((strsplit(si$Info, ";", fixed=TRUE)))
+AMR <- info[grep("AMR_AF", info)]
+AF <- as.numeric(unlist(strsplit(AMR, "=", fixed=TRUE))[2])
+
+# Combine steps
+AF2 <- as.numeric(unlist(strsplit((info[grep("AMR_AF", (unlist((strsplit(si$Info, ";", fixed=TRUE)))))]), "=", fixed=TRUE))[2])
+
+
+
+# make a function
+extractAF <- function(pop, vec) {
+  info <- unlist((strsplit(vec, ";", fixed=TRUE)))
+  AF <- as.numeric(unlist(strsplit((info[grep(pop, (unlist((strsplit(vec, ";", fixed=TRUE)))))]), "=", fixed=TRUE))[2])
+  return(AF)
+}
+
+
+
+# Mutate does not work
+# mutate(samp, AMR_AF = extractAF("AMR_AF", Info))
+
+
+
+samp <- select(cl, Chrom, Pos, Ref, Alt, Info, TG_rs)
+
+
+x <- unlist(apply(samp, 1, function(x) extractAF("AMR_AF", x[5])))
+
+
+
+
+```
+
+
+
+```{r AF}
+
+all_pop <- c("AMR_AF", "AFR_AF", "EUR_AF", "SAS_AF", "EAS_AF")
+pat <- paste0(".*\\b", all_pop, "=(\\d+\\.?\\d+)\\b.*")
+
+out <- as.data.frame(sapply(pat, gsub, replacement="\\1", x=samp$Info))
+newdf <- setNames(as.data.frame(out), all_pop)
+
+
+
+new <- cbind.data.frame(samp, newdf)
+new2 <- cbind(samp, newdf)
+```
+
