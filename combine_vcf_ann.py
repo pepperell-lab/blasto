@@ -58,6 +58,38 @@ def make_snpDict():
             snpDict[snpID] = [line[2], line[7]]
     return snpDict
 
+def make_snpDictAlt():
+    """Make a dictionary with the chr_pos as the key and 
+    an empty list as value"""
+    snpDict = {}
+    with open(args.tgFile, 'r') as infile:
+        for line in infile:
+            line = line.strip().split('\t')
+            chrom = line[0]
+            pos = line[1]
+            ALTs = line[4].split(",")
+            INFOs = line[7].split(";")
+            for i,allele in enumerate(ALTs):
+                snpID = chrom + '_' + pos + '_' + ALTs[i]
+                snpDict[snpID] = {}
+                for field in INFOs:
+                    try:
+                        header,value = field.split("=")
+                        values = value.split(",")
+                        if len(values) > 1:
+                            if header == 'CSQ':
+                                for x,y in enumerate(values):
+                                    if y[0] == ALTs[i]:
+                                        val = values[x]
+                            else:
+                                val = values[i]
+                        else:
+                            val = value
+                        snpDict[snpID][header] = val
+                    except ValueError:
+                        print field
+    return snpDict
+
 def write_file(snpDict):
     outfileName = args.snpFile.split(".")[0] + '_1k_combined.vcf'
     with open(args.snpFile, 'r') as infile, open(outfileName, 'w') as outfile:
@@ -68,14 +100,15 @@ def write_file(snpDict):
             snpID = chrom + '_' + pos
             if snpID in snpDict:
                 if snpDict[snpID][0] == line[2]:
-                    outfile.write("\t".join(line[0:7]) + '\t' + snpDict[snpID][1] + '\t' + "\t".join(line[7:]) + '\n')
+                    outfile.write("\t".join(line[0:7]) + '\t' + snpDict[snpID][1] + '\t' + "\t".join(line[8:]) + '\n')
                 elif snpDict[snpID][0][0:2] == "rs" and line[2] == ".":
-                    outfile.write("\t".join(line[0:2]) + '\t' + snpDict[snpID][0] + '\t' + "\t".join(line[3:7]) + '\t' + snpDict[snpID][1] + '\t' + "\t".join(line[7:]) + '\n')
+                    outfile.write("\t".join(line[0:2]) + '\t' + snpDict[snpID][0] + '\t' + "\t".join(line[3:7]) + '\t' + snpDict[snpID][1] + '\t' + "\t".join(line[8:]) + '\n')
                 else:
                     print('Disagreement between rs#s at {0}'.format(snpID))
-                    outfile.write("\t".join(line[0:2]) + '\t' + line[2] + ',' + snpDict[snpID][0] + '\t' + "\t".join(line[3:7]) + '\t' + snpDict[snpID][1] + '\t' + "\t".join(line[7:]) + '\n')
+                    outfile.write("\t".join(line[0:2]) + '\t' + line[2] + ',' + snpDict[snpID][0] + '\t' + "\t".join(line[3:7]) + '\t' + snpDict[snpID][1] + '\t' + "\t".join(line[8:]) + '\n')
             else:
                 outfile.write("\t".join(line) + '\n')
 
-snpDict = make_snpDict()
-write_file(snpDict)
+#snpDict = make_snpDict()
+snpDict = make_snpDictAlt()
+#write_file(snpDict)
