@@ -62,6 +62,7 @@ def make_snpDictAlt():
     """Make a dictionary with the chr_pos as the key and 
     an empty list as value"""
     snpDict = {}
+    cols = ['AF','EUR_AF','EAS_AF','SAS_AF','AFR_AF','AMR_AF','AA','tri','CSQ','FUNSEQ']
     with open(args.tgFile, 'r') as infile:
         for line in infile:
             line = line.strip().split('\t')
@@ -72,11 +73,16 @@ def make_snpDictAlt():
             for i,allele in enumerate(ALTs):
                 snpID = chrom + '_' + pos + '_' + ALTs[i]
                 snpDict[snpID] = {}
+                snpDict[snpID]['rs'] = line[2]
+                snpDict[snpID]['info'] = line[7]
+                for x in cols:
+                    snpDict[snpID][x] = "NA"
                 for field in INFOs:
                     try:
                         header,value = field.split("=")
                         values = value.split(",")
                         if len(values) > 1:
+                            snpDict[snpID]['tri'] = "TRUE"
                             if header == 'CSQ':
                                 for x,y in enumerate(values):
                                     if y[0] == ALTs[i]:
@@ -84,6 +90,7 @@ def make_snpDictAlt():
                             else:
                                 val = values[i]
                         else:
+                            snpDict[snpID]['tri'] = "FALSE"
                             val = value
                         snpDict[snpID][header] = val
                     except ValueError:
@@ -91,13 +98,17 @@ def make_snpDictAlt():
     return snpDict
 
 def write_file(snpDict):
-    outfileName = args.snpFile.split(".")[0] + '_1k_combined.vcf'
+    outfileName = args.snpFile.split(".")[0] + '_mod.vcf'
     with open(args.snpFile, 'r') as infile, open(outfileName, 'w') as outfile:
         for line in infile:
             line = line.strip().split('\t')
             chrom = line[0].strip("chr")
             pos = line[1]
-            snpID = chrom + '_' + pos
+            alt = line[4]
+            triTest = alt.split(",")
+            if len(triTest) > 1:
+                print("{0} {1} has more than one alt allele".format(chrom, pos))
+            snpID = chrom + '_' + pos 
             if snpID in snpDict:
                 if snpDict[snpID][0] == line[2]:
                     outfile.write("\t".join(line[0:7]) + '\t' + snpDict[snpID][1] + '\t' + "\t".join(line[8:]) + '\n')
@@ -109,6 +120,73 @@ def write_file(snpDict):
             else:
                 outfile.write("\t".join(line) + '\n')
 
+def write_file_alt(snpDict):
+    outfileName = args.snpFile.split(".")[0] + '_mod.vcf'
+    with open(args.snpFile, 'r') as infile, open(outfileName, 'w') as outfile:
+        for line in infile:
+            line = line.strip().split('\t')
+            chrom = line[0].strip("chr")
+            pos = line[1]
+            alt = line[4]
+            triTest = alt.split(",")
+            if len(triTest) > 1:
+                print("{0} {1} has more than one alt allele".format(chrom, pos))
+            snpID = chrom + '_' + pos + '_' + alt
+            if snpID in snpDict:
+                if snpDict[snpID]['rs'] == line[2]:
+                    outfile.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' %
+                        ("\t".join(line[0:7]),
+                        snpDict[snpID]['info'], 
+                        "\t".join(line[8:]), 
+                        snpDict[snpID]['AF'],
+                        snpDict[snpID]['EUR_AF'],
+                        snpDict[snpID]['EAS_AF'],
+                        snpDict[snpID]['SAS_AF'],
+                        snpDict[snpID]['AFR_AF'],
+                        snpDict[snpID]['AMR_AF'],
+                        snpDict[snpID]['AA'],
+                        snpDict[snpID]['tri'],
+                        snpDict[snpID]['CSQ'],
+                        snpDict[snpID]['FUNSEQ']))
+                elif snpDict[snpID]['rs'][0:2] == "rs" and line[2] == ".":
+                    outfile.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' %
+                        ("\t".join(line[0:2]),
+                        snpDict[snpID]['rs'],
+                        "\t".join(line[3:7]),
+                        snpDict[snpID]['info'], 
+                        "\t".join(line[8:]), 
+                        snpDict[snpID]['AF'],
+                        snpDict[snpID]['EUR_AF'],
+                        snpDict[snpID]['EAS_AF'],
+                        snpDict[snpID]['SAS_AF'],
+                        snpDict[snpID]['AFR_AF'],
+                        snpDict[snpID]['AMR_AF'],
+                        snpDict[snpID]['AA'],
+                        snpDict[snpID]['tri'],
+                        snpDict[snpID]['CSQ'],
+                        snpDict[snpID]['FUNSEQ']))
+                else:
+                    print('Disagreement between rs#s at {0}'.format(snpID))
+                    outfile.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' %
+                        ("\t".join(line[0:2]),
+                        line[2] + ',' + snpDict[snpID]['rs'],
+                        "\t".join(line[3:7]),
+                        snpDict[snpID]['info'], 
+                        "\t".join(line[8:]), 
+                        snpDict[snpID]['AF'],
+                        snpDict[snpID]['EUR_AF'],
+                        snpDict[snpID]['EAS_AF'],
+                        snpDict[snpID]['SAS_AF'],
+                        snpDict[snpID]['AFR_AF'],
+                        snpDict[snpID]['AMR_AF'],
+                        snpDict[snpID]['AA'],
+                        snpDict[snpID]['tri'],
+                        snpDict[snpID]['CSQ'],
+                        snpDict[snpID]['FUNSEQ']))
+            else:
+                outfile.write("\t".join(line) + 'NA\t'*9 + 'NA\n')
+
 #snpDict = make_snpDict()
-snpDict = make_snpDictAlt()
 #write_file(snpDict)
+snpDict = make_snpDictAlt()
+write_file_alt(snpDict)
