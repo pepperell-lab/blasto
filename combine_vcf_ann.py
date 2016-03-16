@@ -184,7 +184,7 @@ def write_file_alt(snpDict):
                         snpDict[snpID]['CSQ'],
                         snpDict[snpID]['FUNSEQ']))
             else:
-                outfile.write("\t".join(line) + 'NA\t'*9 + 'NA\n')
+                outfile.write("\t".join(line) + 'NA\t'*10 + 'NA\n')
 
 #snpDict = make_snpDict()
 #write_file(snpDict)
