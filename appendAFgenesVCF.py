@@ -77,7 +77,7 @@ def append(autosomes, antifungals, AFregDict):
         for line in vcf:
             if line[0] != "#":
                 line = line.strip().split('\t')
-                chrom = line[0]
+                chrom = "chr" + line[0]
                 bp = line[1]
                 if chrom in autosomes:
                     candReg = []
