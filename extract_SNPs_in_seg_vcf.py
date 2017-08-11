@@ -36,7 +36,6 @@ def get_arguments():
 args = get_arguments()
 
 def make_chrdict():
-    #make a dictionary of dictionaries, one dictionary per autosome with the geneaccession number as key
     dictionaries = {}
     autosomes = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22"]
     for chromosome in autosomes:
@@ -55,7 +54,8 @@ def make_gene_segment_overlap(dictionaries,autosomes):
         for line in VCF:
             if line[0] != "#":
                 line = line.strip().split()
-                chrom,bp = line[0],line[1]
+                chrom = "chr" + line[0]
+                bp = line[1]
                 if chrom in autosomes:
                     for v in dictionaries[chrom].values():
                         if int(bp) >= int(v[0]) and int(bp) <= int(v[1]):
