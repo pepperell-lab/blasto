@@ -53,7 +53,7 @@ def make_snpDict(snpIN):
     with open(snpIN, 'r') as infile:
         for line in infile:
             line = line.strip().split('\t')
-            chrom = line[0]
+            chrom = line[0].strip("chr")
             pos = line[1]
             snpID = chrom + '_' + pos
             snpDict[snpID] = []
@@ -80,7 +80,7 @@ def write_file(snpDict, snpIN):
     with open(args.snpFile, 'r') as infile, open(outfileName, 'w') as outfile:
         for line in infile:
             line = line.strip().split('\t')
-            chrom = line[0]
+            chrom = line[0].strip("chr")
             pos = line[1]
             snpID = chrom + '_' + pos
             if len(snpDict[snpID]) > 0:
