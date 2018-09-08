@@ -1,5 +1,5 @@
 roh <- read.table("overlapping_ROH.txt", header=F, sep='\t')
-cases <- roh[roh$V5 == 9,]
+cases <- roh[roh$V5 >= 7,]
 
 require(ggplot2)
 require(dplyr)
