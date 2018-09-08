@@ -1,0 +1,269 @@
+---
+title: "Re-evaluating pilot Hmong WGS data with updated 1K genomes annotations and BROAD calling"
+author: "Mary O'Neill"
+date: "June 22 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+suppressMessages(library(dplyr))
+require(vcfR)
+```
+
+## The Data
+
+I am using SNPs previously identified in consensus ROH from our 5 Hmong cases. The file is a VCF that has been appended to included the 'INFO' column for each SNP that is documented in the 1K Project VCFs (see below). Note that I have also updated the 'ID' column with the rs# of a SNP if it was not previously listed, and in instances where there is a disagreement between the Hmong-vcf and the 1K-vcf, I have simply separated them with a comma. In looking at a few of these instances it appears many are triallelic SNPs where one rs# corresponds to a SNP and the other and INDEL. 
+
+```{r loadData, echo=FALSE}
+
+#filepath <- "C://Users/Mary/PepLab/data/blasto/1K_genomes/SNPs_overlap_1k_combined_GTEx_antifungal.txt"
+#filepath <- "C://Users/Mary/PepLab/data/blasto/1K_genomes/SNPs_overlap_mod_GTEx_antifungal.txt"
+filepath <- "C://Users/Mary/PepLab/data/blasto/postdoc/blasto_9cases_consensusROH_mod_GTEx_antifungal.txt"
+
+TG <- read.table(filepath, header = F, sep = '\t', stringsAsFactors = FALSE, na.strings = c("NA", "."))
+names(TG) <- c("CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", "BDH001", "BDH002", "BDH003", "BDH004", "BDH005", "BDH006", "BDH007", "BDH008", "BDH009", "BDH010", "BDH018", "AF","EUR_AF","EAS_AF","SAS_AF","AFR_AF","AMR_AF","AA","TRI","CSQ","FUNSEQ","GTEx", "CANDREG", "CANDGENE")
+
+TG.l <- tbl_df(TG)
+glimpse(TG.l)
+```
+
+## Extract Super Population Allele Frequencies
+
+The 'INFO' field of the VCF file was modified to contain the 'INFO' field for the SNP from the functionally annotated VCFs released from the Phase 3 1K Genomes Project (<ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release'/20130502/supporting/functional_annotation/filtered/>). The code below extracts the allele frequencies from the 'INFO' field of the data frame. This contains allele frequencies calculated for the 5 'Super Populations' of the 1K Genomes Project:
+
+AFR, African
+AMR, Ad Mixed American
+EAS, East Asian
+EUR, European
+SAS, South Asian
+
+The most closely related populations to the Hmong in the 1K Genomes Project are likely the 'Han Chinese in Beijing, China' (CHB) or the 'Southern Han Chinese' (CHS). Both of these populations are grouped into the EAS super population. 
+
+```{r AF}
+##This is no longer necessary. I have extracted the AF in python, with more complex handling to ensure that the correct AF are extracted at sites where there are more than one alternative allele.
+
+##Exctracting the AF's
+#all_pop <- c("AMR_AF", "AFR_AF", "EUR_AF", "SAS_AF", "EAS_AF")
+#pat <- paste0(".*\\b", all_pop, "=(\\d+(\\.\\d+)?)\\b.*")
+#out <- as.data.frame(sapply(pat, gsub, replacement="\\1", x=TG.l$INFO))
+
+## Replace column headers with the super population
+#newdf <- setNames(as.data.frame(out), all_pop)
+
+## Combine the data frames together
+#AF <- cbind.data.frame(TG.l, newdf)
+
+## Convert the AF to numbers
+#AF$AMR_AF <- as.numeric(as.character(AF$AMR_AF))
+#AF$AFR_AF <- as.numeric(as.character(AF$AFR_AF))
+#AF$EUR_AF <- as.numeric(as.character(AF$EUR_AF))
+#AF$SAS_AF <- as.numeric(as.character(AF$SAS_AF))
+#AF$EAS_AF <- as.numeric(as.character(AF$EAS_AF))
+
+
+```
+
+## Genotypes
+
+Next, I need to extract the Genotypes of our Hmong individuals, and then filter for variants where the individuals have the same genotype.
+
+```{r GT}
+
+# Extract genotypes of Hmong samples from VCF
+AFgt <- TG.l %>%
+  rowwise() %>%
+  mutate(gt = gsub("/", "", paste(unlist(strsplit(BDH001, ":", fixed=TRUE))[1], 
+                                  unlist(strsplit(BDH002, ":", fixed=TRUE))[1], 
+                                  unlist(strsplit(BDH003, ":", fixed=TRUE))[1], 
+                                  unlist(strsplit(BDH004, ":", fixed=TRUE))[1], 
+                                  unlist(strsplit(BDH005, ":", fixed=TRUE))[1], 
+                                  unlist(strsplit(BDH007, ":", fixed=TRUE))[1], 
+                                  unlist(strsplit(BDH008, ":", fixed=TRUE))[1], 
+                                  unlist(strsplit(BDH009, ":", fixed=TRUE))[1], 
+                                  unlist(strsplit(BDH010, ":", fixed=TRUE))[1], 
+                                  unlist(strsplit(BDH006, ":", fixed=TRUE))[1], 
+                                  unlist(strsplit(BDH018, ":", fixed=TRUE))[1], sep="")))
+  
+
+
+### Get SNPs within 4000 bases of TSS of IL6 for Richard (160728)
+
+#int <- filter(AFgt, (CHROM == "chr7" & POS >= 22762761 & POS <= 22770761))
+
+
+#write.table(int, "160728_newAnalysis.txt", append = FALSE, quote = FALSE, sep = "\t", eol = "\n", na = "NA", row.names = FALSE, col.names = TRUE, qmethod = "double" )
+
+
+
+
+
+# Filter for loci where all 5 cases have the same genotype (including hets)
+same <- filter(AFgt, (substr(gt, 1, 2) == substr(gt, 3,4) | substr(gt, 1, 2) == substr(gt, 4,3)) & 
+                      (substr(gt, 1, 2) == substr(gt, 5,6) | substr(gt, 1, 2) == substr(gt, 6,5)) &
+                      (substr(gt, 1, 2) == substr(gt, 7,8) | substr(gt, 1, 2) == substr(gt, 8,7)) &
+                      (substr(gt, 1, 2) == substr(gt, 9,10) | substr(gt, 1, 2) == substr(gt, 10,9)) &
+                      (substr(gt, 1, 2) == substr(gt, 11,12) | substr(gt, 1, 2) == substr(gt, 12,11)) &
+                      (substr(gt, 1, 2) == substr(gt, 13,14) | substr(gt, 1, 2) == substr(gt, 14,13)) &
+                      (substr(gt, 1, 2) == substr(gt, 15,16) | substr(gt, 1, 2) == substr(gt, 16,15)) &
+                      (substr(gt, 1, 2) == substr(gt, 17,18) | substr(gt, 1, 2) == substr(gt, 18,17))
+                 )
+
+
+```
+
+## Rare alleles in EUR, common in Hmong
+
+Let's look at the variants in terms of 'rareness' to EUR.
+
+```{r rare}
+
+# Filtering for rare in European, but fixed in Hmong
+same_rare <- filter(same, (is.na(EUR_AF) & substr(gt, 1, 10) == "1111111111" | (EUR_AF <= 0.1 & substr(gt, 1, 10) == "1111111111" | (EUR_AF >= 0.9 & substr(gt, 1, 10) == "0000000000"))))
+
+same_rare_20 <- filter(same, (is.na(EUR_AF) & substr(gt, 1, 10) == "1111111111" | (EUR_AF <= 0.2 & substr(gt, 1, 10) == "1111111111" | (EUR_AF >= 0.8 & substr(gt, 1, 10) == "0000000000"))))
+
+```
+
+There are `r length(same_rare$POS)` alleles that are fixed in the Hmong, but <= 0.1 in EUR. Relaxing the threshold to 0.2, there are `r length(same_rare_20$POS)` alleles fixed in the Hmong that are 'rare' in EUR.
+
+## GTEx eQTLs
+
+```{r gtex}
+
+# Subset demonstrated eQTLs from the GTEx project
+eQTL <- filter(same, !is.na(GTEx))
+lung <- eQTL[grep("Lung", eQTL$GTEx), ]
+blood <- eQTL[grep("WholeBlood", eQTL$GTEx), ]
+
+# Rare (0.1) & demonstrated eQTL from GTEx
+eQTL_rare <- same_rare[!is.na(same_rare$GTEx),]
+lung_rare <- eQTL_rare[grep("Lung", eQTL_rare$GTEx), ]
+blood_rare <- eQTL_rare[grep("WholeBlood", eQTL_rare$GTEx), ]
+
+# Rare (o.2) & demonstrated eQTL from GTEx
+eQTL_rare_20 <- same_rare_20[!is.na(same_rare_20$GTEx),]
+lung_rare_20 <- eQTL_rare_20[grep("Lung", eQTL_rare_20$GTEx), ]
+blood_rare_20 <- eQTL_rare_20[grep("WholeBlood", eQTL_rare_20$GTEx), ]
+```
+
+There are `r length(eQTL$POS)` SNPs that are demonstrated eQTLs by the GTEx Project that are fixed in the Hmong. More specifically, there are `r length(lung$POS)` eQTLs in lung tissue, and `r length(blood$POS)` in blood. Of these, `r length(lung_rare$POS)` are 'rare' in EUR using a threshold of 0.1 and `r length(lung_rare_20$POS)` using a threshold of 0.2 for the lung eQTLs, and `r length(blood_rare$POS)` and `r length(blood_rare_20$POS)` for the blood eQTLs.
+
+## Immune Variation eTQLs
+
+Note that these are a 'quick-and-dirty' look at eQTLs identified in the ImmVar project. Just because a SNP is flagged does not necessarily mean that it was an eQTL. The authors of the ImmVar project said to check back with them in a few weeks as they are currently developing the website and will have inormation in a better format soon.
+
+```{r immvar}
+
+DCs <- read.table("C://Users/Mary/PepLab/data/blasto/ImmVar/S4_Lee_collated.txt", stringsAsFactors = FALSE)
+dcs <- DCs$V1
+
+MOs <- read.table("C://Users/Mary/PepLab/data/blasto/ImmVar/tableS11_meta_monocytes_cis_fdr05.tsv", stringsAsFactors = FALSE)
+mos <- MOs$V1
+
+CD4T <- read.table("C://Users/Mary/PepLab/data/blasto/ImmVar/tableS12_meta_cd4T_cis_fdr05.tsv", stringsAsFactors = FALSE)
+cd4t <- CD4T$V1
+
+tcell <- read.table("C://Users/Mary/PepLab/data/blasto/ImmVar/S7_tcell.xlsx", stringsAsFactors = FALSE)
+tc <- tcell$V1
+
+# Combine the independent datasets into one
+ImmVar<- Reduce(union, list(dcs, mos, cd4t, tc))
+
+# Make a column with logical value for identification in ImmVar project
+same$ImmVar <- ifelse(same$ID %in% ImmVar, TRUE, FALSE)
+same_rare$ImmVar <- ifelse(same_rare$ID %in% ImmVar, TRUE, FALSE)
+same_rare_20$ImmVar <- ifelse(same_rare_20$ID %in% ImmVar, TRUE, FALSE)
+
+# Extract SNPs that are identified in the ImmVar project
+ImmVar_eQTL <- data.frame(filter(same, ImmVar == TRUE))
+
+# Extract SNPs that are identified in the ImmVar project that are also rare in EUR (<10%) and fixed in Hmong
+ImmVar_eQTL_rare <- data.frame(filter(same_rare, ImmVar == TRUE))
+
+# Extract SNPs that are identified in the ImmVar project that are also rare in EUR (<20%) and fixed in Hmong
+ImmVar_eQTL_rare_20 <- data.frame(filter(same_rare_20, ImmVar == TRUE))
+
+```
+
+There are `r length(ImmVar_eQTL$POS)` SNPs that may be demonstrated eQTLs in one of the ImmVar projects that are fixed in the Hmong. Interesting candidates should be examined in the original publications more thoroughly since the information for the ImmVar project is a bit convoluted and this call set is not confident. `r length(ImmVar_eQTL_rare$POS)` of these potential eQTLs are 'rare' in EUR using a threshold of 0.1 and `r length(ImmVar_eQTL_rare_20$POS)` using a threshold of 0.2. `r length(intersect(ImmVar_eQTL_rare$POS, eQTL_rare$POS))` of the 'rare in EUR, common in Hmong' SNPs (<10%) that were identified as potential eQTLs in the ImmVar project are also identified as eQTLs by the GTEx project, and `r length(intersect(ImmVar_eQTL_rare_20$POS, eQTL_rare_20$POS))` using a threshold of <20% in EUR. 
+
+## Variant Effect Predictor
+
+I can search for "regulatory" SNPs by grepping for "reg" or "Reg" in the INFO column. Similarly, I can look for missense mutations, stop gains, stop lost, etc...
+
+```{r reg}
+
+# Make a column that gives a logical for whether or not the info column contains 'Reg' or 'reg'
+same$REG <- grepl("Reg|reg", same$INFO)
+same$REG[is.na(same$INFO)] <- NA
+
+same_rare$REG <- grepl("Reg|reg", same_rare$INFO)
+same_rare$REG[is.na(same_rare$INFO)] <- NA
+
+same_rare_20$REG <- grepl("Reg|reg", same_rare_20$INFO)
+same_rare_20$REG[is.na(same_rare_20$INFO)] <- NA
+
+
+
+same$missense <- grepl("missense", same$INFO, ignore.case=TRUE)
+same$missense[is.na(same$INFO)] <- NA
+
+same_rare$missense <- grepl("missense", same_rare$INFO, ignore.case=TRUE)
+same_rare$missense[is.na(same_rare$INFO)] <- NA
+
+same_rare_20$missense <- grepl("missense", same_rare_20$INFO, ignore.case=TRUE)
+same_rare_20$missense[is.na(same_rare_20$INFO)] <- NA
+
+
+# There were no stop gain, stop lost, or frameshift mutations in this dataset
+same$stop <- grepl("stop", same$INFO, ignore.case = TRUE)
+same$stop[is.na(same$INFO)] <- NA
+
+same$frame <- grepl("frame", same$INFO, ignore.case = TRUE)
+same$frame[is.na(same$INFO)] <- NA
+
+
+```
+
+Of the `r length(same$POS)` SNPs that are fixed in the Hmong ROH consensus regions, `r sum(same$REG, na.rm=TRUE)` are annotated as regulatory in the 1K genomes data. Note that this method will not identify novel regulatory variants, as truly novel variants will not be in the 1K genomes data.(Though some very, very rare variants are, 0.001) `r sum(same_rare$REG, na.rm=TRUE)` of these regulatory SNPs are 'rare in EUR (< 10%), common in Hmong' and `r sum(same_rare_20$REG, na.rm=TRUE)` when loosening the rare to < 20 %. 
+
+## AF Immunity
+
+We can filter for SNPs that land in known antifungal genes, or within 200kb of the TSS of these genes. 
+
+```{r AFimm}
+
+candgene <- filter(same, !is.na(CANDGENE))
+candreg <- filter(same, !is.na(CANDREG))
+
+candgene_rare <- filter(same_rare, !is.na(CANDGENE))
+candgene_rare_20 <- filter(same_rare_20, !is.na(CANDGENE))
+
+candreg_rare <- filter(same_rare, !is.na(CANDREG))
+candreg_rare_20 <- filter(same_rare_20, !is.na(CANDREG))
+```
+
+Of the SNPs fixed in the Hmong consensus ROH regions, `r length(candgene$POS)` land within the boundaries of known antifungal genes, and `r length(candreg$POS)` land within 200kb of the TSS of known antifungal genes. These numbers reduce to `r length(candgene_rare$POS)` and `r length(candreg_rare$POS)` when excluding variants found at >10% in EUR, and `r length(candgene_rare_20$POS)` and `r length(candreg_rare_20$POS)` when excluding variants found at >20% in EUR. 
+
+
+## Most Promising
+
+I am going to make a spreadsheet of promising candidates. There are multiple ways of doing this, and for the time being I want to be as open as possible. I am going to save a 'loose' set of promising alleles as a spreadsheet and share it with Bruce, Caitlin, and Richard. This will correspond to "prom3" below which includes varaints that are rare in EUR (<20%) and are annotated as regulatory, an eQTL in the GTEx or ImmVar project, and/or is near or in a known antifungal gene. 
+```{r}
+
+# Promising set 1: Rare, in or near a known antifungal gene and some sort of annotation of interest (eQTL or reg)
+prom <- filter(same_rare_20, (!is.na(CANDGENE) | !is.na(CANDREG) & (!is.na(GTEx) | REG == TRUE | ImmVar == TRUE)))
+
+# Promising set 2: Rare, regulatory and eQTL evidence
+prom2 <- filter(same_rare_20, REG == TRUE & (!is.na(GTEx) | ImmVar == TRUE))
+
+# Loose promising
+prom4 <- filter(same_rare_20, REG == TRUE | (!is.na(CANDREG) | !is.na(CANDGENE)) | (is.na(REG) & (!is.na(GTEx) | ImmVar == TRUE)))
+
+cand <- filter(same_rare_20, !is.na(CANDREG) | !is.na(CANDGENE))
+
+#require("xlsx")
+#write.table(prom4, "C://Users/Mary/PepLab/data/blasto/postdoc/170622_promising.txt", sep = "\t", eol = "\n", na = "NA", dec = ".", quote = FALSE, col.names=TRUE, row.names=FALSE, qmethod = "double")
+```
+
